@@ -52,11 +52,13 @@ No profundizar en RSA. Alcanzan cuatro ideas:
 3. publica la clave pública en JWKS;
 4. el receptor verifica firma, issuer, audiencia y vencimiento.
 
-### Bloque 5 — Cloud
+### Bloque 5 — Federación con Google
 
-Antes del puente cloud, demostrar SSO con las dos aplicaciones. La app confía en Keycloak; Keycloak puede usar su base local o delegar en Google. Mostrar discovery y claims, no el intercambio HTTP completo.
+La demostración principal usa un solo Portal. Primero hacer un login local de control; después cerrar sesión y elegir Google. La app confía en Keycloak; Keycloak delega la autenticación en Google y luego emite el token que consume el Portal.
 
-Si se demostrará Google, configurar el OAuth Client y los mappers antes de la clase. No emplear tiempo de aula creando el proyecto de Google Cloud.
+Mostrar cinco evidencias: pantalla de Google, `identity_provider=google`, usuario federado en Keycloak, `iss` de Keycloak y correspondencia del `kid` con su JWKS. Si queda tiempo, usar Reportes para mostrar SSO.
+
+Configurar el OAuth Client y los mappers antes de la clase. No emplear tiempo de aula creando el proyecto de Google Cloud.
 
 ### Bloque 6 — Cloud
 

@@ -9,7 +9,7 @@ El objetivo no es memorizar YAML. Vamos a seguir una solicitud real hasta entend
 3. **¿Qué acción** intenta realizar y sobre qué recurso?
 4. **¿Qué regla** permite o rechaza esa acción?
 
-Al terminar vas a haber creado una identidad humana con certificado, permisos por grupo, una identidad para una aplicación mediante `ServiceAccount`, vas a inspeccionar el JWT y las claves JWKS que Kubernetes usa para verificarlo y vas a autenticar dos aplicaciones simples mediante Keycloak.
+Al terminar vas a haber creado una identidad humana con certificado, permisos por grupo, una identidad para una aplicación mediante `ServiceAccount`, vas a inspeccionar el JWT y las claves JWKS que Kubernetes usa para verificarlo y vas a conectar una aplicación a Keycloak para autenticar usuarios con Google.
 
 ## Mapa del laboratorio
 
@@ -62,7 +62,7 @@ brew install kind kubectl jq openssl
 | 17–32 min | Roles y bindings por ambiente | autorización, RBAC y menor privilegio |
 | 32–45 min | Aplicación con ServiceAccount | identidad de cargas de trabajo |
 | 45–55 min | JWT, discovery y JWKS | tokens, claims y verificación |
-| 55–75 min | Keycloak, SSO y perfil de Google | identidad federada y claims OIDC |
+| 55–75 min | App, Keycloak y login con Google | federación, broker y claims OIDC |
 | 75–80 min | Puente AWS y cierre | federación de workloads |
 
 ---
@@ -333,20 +333,20 @@ JWT dice quién es la carga + JWKS permite verificar quién firmó ese JWT
 
 ---
 
-# 5. SSO con Keycloak y perfil de Google
+# 5. Una aplicación, Keycloak y Google
 
 Ahora cambiamos de plano: Kubernetes resolvió el acceso a infraestructura; Keycloak resolverá la autenticación de personas para aplicaciones.
 
-![SSO con Keycloak y Google](docs/diagrams/sso-google.png)
+![Federación con Keycloak y Google](docs/diagrams/sso-google.png)
 
-La regla de diseño es importante:
+Ésta es la demostración principal de federación de identidad. La regla de diseño es:
 
 ```text
-Las aplicaciones confían en Keycloak.
+La aplicación confía solamente en Keycloak.
 Keycloak puede autenticar localmente o delegar la autenticación en Google.
 ```
 
-La app no recibe la contraseña de Google. Recibe desde Keycloak claims OIDC con la identidad ya verificada.
+La app no recibe la contraseña ni el token de Google. Después del login federado recibe de Keycloak una identidad normalizada y un token emitido por Keycloak.
 
 ## Preparación previa recomendada
 
@@ -360,7 +360,7 @@ Esto levanta:
 
 - Keycloak en <http://localhost:8080>;
 - Portal en <http://localhost:5100>;
-- Reportes en <http://localhost:5101>.
+- Reportes en <http://localhost:5101>, únicamente como extensión opcional para SSO.
 
 Credenciales locales del laboratorio:
 
@@ -388,15 +388,42 @@ curl -s http://localhost:8080/realms/formatec/.well-known/openid-configuration \
 
 La aplicación no necesita tener codificadas todas las URLs. Descubre dónde autorizar, intercambiar el código, obtener el perfil y descargar las claves públicas.
 
-## Demostrar SSO
+## Demostrar primero el contrato App ↔ Keycloak
 
 1. Abrí el Portal en <http://localhost:5100>.
 2. Elegí **Iniciar sesión con Keycloak**.
-3. Ingresá como `ana`.
-4. Observá los claims mostrados por la aplicación.
-5. Sin cerrar la sesión, abrí Reportes en <http://localhost:5101>.
-6. Elegí iniciar sesión nuevamente.
-7. Keycloak reconoce su sesión y no vuelve a solicitar la contraseña.
+3. Para la primera prueba ingresá como `ana`.
+4. Observá que `identity_provider` está vacío: fue un login local.
+5. Cerrá la sesión central.
+
+Esta prueba sirve de control: confirma que la aplicación tiene una sola integración OIDC, con Keycloak.
+
+## Demostrar la federación real con Google
+
+Google debe quedar configurado antes de la clase siguiendo [docs/keycloak-google.md](docs/keycloak-google.md).
+
+1. Volvé al Portal y elegí **Iniciar sesión con Keycloak**.
+2. En la pantalla de Keycloak seleccioná **Google**.
+3. Autenticate en la página oficial de Google con la cuenta de prueba.
+4. Google devuelve la identidad a Keycloak.
+5. Keycloak importa o vincula al usuario y redirige al Portal.
+6. En el Portal comprobá nombre, apellido, correo, foto e `identity_provider=google`.
+7. Abrí en otra pestaña **Users** en Keycloak y mostrá el usuario federado.
+8. Repetí el discovery/JWKS para remarcar que la aplicación confía en las claves de Keycloak.
+
+La evidencia que queremos obtener en vivo es:
+
+```text
+Google autenticó al usuario
+Keycloak vinculó y normalizó la identidad
+Keycloak emitió el token consumido por la aplicación
+```
+
+La contraseña se escribe en Google y nunca llega al Portal ni a Keycloak.
+
+### Extensión opcional: SSO
+
+Si quedan tres minutos, abrí Reportes en <http://localhost:5101> y elegí iniciar sesión. Keycloak reutiliza la sesión existente. Esto muestra SSO, pero no es necesario para demostrar la federación.
 
 Eso es SSO: dos clientes diferentes confían en la misma sesión mantenida por el proveedor de identidad.
 
@@ -417,21 +444,18 @@ Y muestra:
 | `family_name` | apellido |
 | `email` | correo |
 | `picture` | URL de la foto, si el proveedor la entrega |
-| `iss` | proveedor que emitió el token |
+| `identity_provider` | proveedor externo que autenticó (`google`) |
+| `iss` | emisor del token consumido por la app (`Keycloak`) |
 
 > Nombre, apellido, correo y foto son datos de identidad. No conceden por sí mismos permiso para administrar la aplicación.
 
-## Conectar Google como proveedor externo
-
-Esta parte necesita un OAuth Client de Google y se recomienda configurarla una sola vez en la cuenta del docente. La guía completa está en [docs/keycloak-google.md](docs/keycloak-google.md).
-
-Cuando queda configurado, el flujo es:
+El flujo completo queda:
 
 ```text
 App → Keycloak → Google → Keycloak → App
 ```
 
-Al ingresar con Google, la app sigue confiando solamente en Keycloak, pero puede recibir —con consentimiento y los scopes `profile email`— claims como:
+Con los scopes `profile email`, Keycloak puede normalizar claims como:
 
 ```json
 {
@@ -485,8 +509,9 @@ Respondé estas preguntas:
 4. ¿Por qué la aplicación utiliza un ServiceAccount y no el certificado de Ana?
 5. ¿Qué relación existe entre el `kid` del JWT y el JWKS?
 6. ¿Qué cambiarías para que `reporter` también pueda leer ConfigMaps sin permitirle leer Secrets?
-7. ¿Por qué las aplicaciones confían en Keycloak y no directamente en la contraseña de Google?
-8. ¿Qué scopes permiten obtener nombre, correo y foto sin acceder a Drive o contactos?
+7. ¿Quién autenticó al usuario y quién emitió el token que recibió el Portal?
+8. ¿Qué demuestra el claim `identity_provider=google`?
+9. ¿Qué scopes permiten obtener nombre, correo y foto sin acceder a Drive o contactos?
 
 Limpiá el entorno:
 

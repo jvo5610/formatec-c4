@@ -9,7 +9,7 @@ from diagrams.onprem.compute import Server
 OUTPUT = Path(__file__).with_name("sso-google")
 
 with Diagram(
-    "SSO e identidad federada",
+    "Una app, Keycloak y Google",
     filename=str(OUTPUT),
     show=False,
     outformat="png",
@@ -26,14 +26,10 @@ with Diagram(
     edge_attr={"fontname": "Arial", "fontsize": "10", "color": "#137333"},
 ):
     user = Users("Usuario")
-    portal = Client("Portal")
-    reports = Client("Reportes")
-    keycloak = Oauth2Proxy("Keycloak\nOIDC + SSO")
+    portal = Client("Aplicación\nFlask")
+    keycloak = Oauth2Proxy("Keycloak\nIdentity broker")
     google = Server("Google\nIdP externo")
 
     user >> Edge(label="abre") >> portal
-    user >> Edge(label="abre") >> reports
-    portal >> Edge(label="OIDC") >> keycloak
-    reports >> Edge(label="misma sesión") >> keycloak
-    keycloak >> Edge(label="identity brokering") >> google
-    google >> Edge(label="perfil") >> keycloak
+    portal >> Edge(label="1. confía por OIDC") >> keycloak
+    keycloak >> Edge(label="2. delega autenticación") >> google

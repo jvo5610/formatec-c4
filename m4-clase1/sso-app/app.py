@@ -82,13 +82,17 @@ PAGE = """
     th { width: 180px; color: #08711a; }
     code { overflow-wrap: anywhere; }
     .note { background: #eef8ee; padding: 14px; border-left: 4px solid #08711a; }
+    .provider { display: inline-block; margin: 8px 0 18px; padding: 7px 12px;
+                border: 1px solid #87bf8a; border-radius: 999px; background: #eef8ee;
+                color: #08711a; font-weight: 800; }
   </style>
 </head>
 <body><main>
   <p class="tag">Cliente OIDC: {{ client_id }}</p>
   <h1>{{ app_name }}</h1>
   {% if not user %}
-    <p>Esta aplicación no administra contraseñas: delega la autenticación en Keycloak.</p>
+    <p>Esta aplicación confía solamente en Keycloak. Desde allí podés usar una cuenta local
+       o elegir Google sin entregar la contraseña a la aplicación.</p>
     <a class="button" href="{{ url_for('login') }}">Iniciar sesión con Keycloak</a>
   {% else %}
     <section class="profile">
@@ -100,6 +104,7 @@ PAGE = """
       <div>
         <h2>{{ user.get('name') or user.get('preferred_username') }}</h2>
         <p>{{ user.get('email', 'Sin correo disponible') }}</p>
+        <span class="provider">Origen: {{ user.get('identity_provider', 'cuenta local de Keycloak') }}</span>
       </div>
     </section>
     <table>
@@ -107,7 +112,9 @@ PAGE = """
       <tr><th>{{ claim }}</th><td><code>{{ user.get(claim, '—') }}</code></td></tr>
       {% endfor %}
     </table>
-    <p class="note">Abrí la otra aplicación: Keycloak reutilizará la sesión y no pedirá otra vez la contraseña.</p>
+    <p class="note"><strong>La app recibió identidad de Keycloak.</strong> Si el origen dice
+      <code>google</code>, Google autenticó al usuario, pero el token consumido por esta app
+      fue emitido y firmado por Keycloak.</p>
     <a class="button" href="{{ url_for('logout') }}">Cerrar sesión central</a>
   {% endif %}
 </main></body></html>
@@ -122,6 +129,7 @@ def home():
         client_id=CLIENT_ID,
         user=session.get("user"),
         claims=[
+            "identity_provider",
             "sub",
             "preferred_username",
             "given_name",
@@ -129,6 +137,7 @@ def home():
             "email",
             "email_verified",
             "picture",
+            "iss",
         ],
     )
 
@@ -141,19 +150,23 @@ def login():
 @app.get("/callback")
 def callback():
     token = keycloak.authorize_access_token()
-    user = keycloak.userinfo(token=token)
-    session["user"] = dict(user)
+    user = dict(keycloak.userinfo(token=token))
+    # Authlib valida el ID token y deja sus claims en `userinfo`. Allí aparecen
+    # datos del emisor como `iss`, que el endpoint UserInfo no siempre repite.
+    id_token_claims = dict(token.get("userinfo") or {})
+    user.update(id_token_claims)
+    session["user"] = user
     session["id_token"] = token.get("id_token")
     return redirect(url_for("home"))
 
 
 @app.get("/logout")
 def logout():
-    id_token = session.pop("id_token", None)
     session.clear()
     params = {"post_logout_redirect_uri": url_for("home", _external=True)}
-    if id_token:
-        params["id_token_hint"] = id_token
+    # En este laboratorio el client_id alcanza para validar la redirección.
+    # Evita acoplar la demo a diferencias de validación de id_token_hint.
+    params["client_id"] = CLIENT_ID
     return redirect(
         f"{KEYCLOAK_PUBLIC_URL}/realms/{REALM}/protocol/openid-connect/logout?"
         + urlencode(params)

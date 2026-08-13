@@ -10,7 +10,7 @@ help:
 	@echo "make test-human   Ejecuta pruebas permitidas/denegadas"
 	@echo "make app          Despliega y prueba el ServiceAccount"
 	@echo "make jwks         Muestra token, discovery y JWKS"
-	@echo "make sso          Levanta Keycloak y las dos apps OIDC"
+	@echo "make sso          Levanta Keycloak y la demo OIDC (Reportes es opcional)"
 	@echo "make sso-stop     Detiene Keycloak y las apps OIDC"
 	@echo "make diagram      Regenera el diagrama (opcional)"
 	@echo "make clean        Elimina el cluster y archivos temporales"
