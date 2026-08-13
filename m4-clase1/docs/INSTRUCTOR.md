@@ -1,5 +1,7 @@
 # Guía docente
 
+La guía narrativa completa para dictar los 80 minutos está en [GUIA-DE-CLASE.md](GUIA-DE-CLASE.md). Este archivo queda como referencia rápida de preparación, ideas centrales y fallos esperados.
+
 ## Objetivo de aprendizaje
 
 Al finalizar, el estudiante debe poder explicar que Kubernetes primero autentica una identidad y luego RBAC evalúa si una combinación de sujeto, verbo, recurso y alcance está permitida.

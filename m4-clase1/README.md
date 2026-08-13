@@ -2,6 +2,8 @@
 
 Laboratorio intermedio y guiado para una clase de aproximadamente **1 h 20 min**.
 
+> **Para dictar la clase:** usar [docs/GUIA-DE-CLASE.md](docs/GUIA-DE-CLASE.md). Incluye el diálogo sugerido, qué explicar antes de cada comando, qué observar en la salida, preguntas para el grupo y transiciones entre todos los bloques.
+
 El objetivo no es memorizar YAML. Vamos a seguir una solicitud real hasta entender cuatro preguntas:
 
 1. **¿Quién** hace la solicitud?
