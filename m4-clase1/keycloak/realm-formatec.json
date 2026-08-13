@@ -1,0 +1,57 @@
+{
+  "realm": "formatec",
+  "enabled": true,
+  "displayName": "Formatec IAM Lab",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "clients": [
+    {
+      "clientId": "portal",
+      "name": "Portal Formatec",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "portal-lab-secret",
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:5100/callback"],
+      "webOrigins": ["http://localhost:5100"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:5100/*"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "roles", "profile", "email"]
+    },
+    {
+      "clientId": "reportes",
+      "name": "Reportes Formatec",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "reportes-lab-secret",
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://localhost:5101/callback"],
+      "webOrigins": ["http://localhost:5101"],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:5101/*"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "roles", "profile", "email"]
+    }
+  ],
+  "users": [
+    {
+      "username": "ana",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ana",
+      "lastName": "Cloud",
+      "email": "ana@formatec.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ana123",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

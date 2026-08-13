@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: reporter
+  namespace: lab-apps
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: lab-apps
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: reporter-pod-reader
+  namespace: lab-apps
+subjects:
+  - kind: ServiceAccount
+    name: reporter
+    namespace: lab-apps
+roleRef:
+  kind: Role
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reporter-code
+  namespace: lab-apps
+data:
+  client.py: |
+    import json
+    import os
+    import ssl
+    import time
+    import urllib.error
+    import urllib.request
+
+    API = "https://kubernetes.default.svc"
+    NS = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read().strip()
+    TOKEN = open("/var/run/secrets/kubernetes.io/serviceaccount/token").read().strip()
+    CA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    CONTEXT = ssl.create_default_context(cafile=CA)
+
+    def request(label, path):
+        req = urllib.request.Request(
+            API + path,
+            headers={"Authorization": "Bearer " + TOKEN},
+        )
+        try:
+            with urllib.request.urlopen(req, context=CONTEXT) as response:
+                body = json.load(response)
+                count = len(body.get("items", []))
+                print(f"[PERMITIDO] {label}: HTTP {response.status}, elementos={count}")
+        except urllib.error.HTTPError as error:
+            print(f"[DENEGADO]  {label}: HTTP {error.code} {error.reason}")
+
+    print(f"Identidad: system:serviceaccount:{NS}:reporter")
+    request("list pods", f"/api/v1/namespaces/{NS}/pods")
+    request("list secrets", f"/api/v1/namespaces/{NS}/secrets")
+    time.sleep(3600)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reporter
+  namespace: lab-apps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reporter
+  template:
+    metadata:
+      labels:
+        app: reporter
+    spec:
+      serviceAccountName: reporter
+      containers:
+        - name: reporter
+          image: python:3.12-alpine
+          command: ["python", "-u", "/app/client.py"]
+          volumeMounts:
+            - name: code
+              mountPath: /app
+              readOnly: true
+          resources:
+            requests:
+              cpu: 10m
+              memory: 24Mi
+            limits:
+              memory: 64Mi
+      volumes:
+        - name: code
+          configMap:
+            name: reporter-code

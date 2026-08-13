@@ -1,0 +1,40 @@
+services:
+  keycloak:
+    image: keycloak/keycloak:26.7.0
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: http://localhost:8080
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./keycloak/realm-formatec.json:/opt/keycloak/data/import/realm-formatec.json:ro
+  portal:
+    build: ./sso-app
+    environment:
+      APP_NAME: Portal interno
+      OIDC_CLIENT_ID: portal
+      OIDC_CLIENT_SECRET: portal-lab-secret
+      KEYCLOAK_PUBLIC_URL: http://localhost:8080
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      PORT: "5100"
+      FLASK_SECRET_KEY: portal-solo-laboratorio
+    ports:
+      - "127.0.0.1:5100:5100"
+    depends_on:
+      - keycloak
+  reportes:
+    build: ./sso-app
+    environment:
+      APP_NAME: Panel de reportes
+      OIDC_CLIENT_ID: reportes
+      OIDC_CLIENT_SECRET: reportes-lab-secret
+      KEYCLOAK_PUBLIC_URL: http://localhost:8080
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      PORT: "5101"
+      FLASK_SECRET_KEY: reportes-solo-laboratorio
+    ports:
+      - "127.0.0.1:5101:5101"
+    depends_on:
+      - keycloak

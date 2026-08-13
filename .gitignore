@@ -1,0 +1,6 @@
+.DS_Store
+.tmp/
+m4-clase1/.lab/
+m4-clase1/.lab.cleaned.*/
+__pycache__/
+*.pyc
